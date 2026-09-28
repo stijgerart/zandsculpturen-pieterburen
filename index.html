@@ -185,6 +185,10 @@ section .card {
   width:100%;
   overflow:hidden;
   white-space:nowrap;
+  /* Rechthoekige clip, onafhankelijk van de border-radius van .status-bar.
+     Zonder dit kan de composited track buiten de afgeronde hoek doorlekken. */
+  position:relative;
+  contain:paint;
 }
 .status-scroll-track{
   display:inline-block;
@@ -210,24 +214,31 @@ section .card {
     transform:translateX(100vw);
   }
 
-  /* volledige tekst komt exact met zijn MIDDEN op het schermmidden */
+  /* Gecentreerd, maar nooit links buiten beeld.
+     50% is de halve breedte van de TEKST. Is de tekst breder dan het
+     scherm, dan wordt 50vw - 50% negatief en zou het begin van de tekst
+     links wegvallen en daar 40% van de cyclus blijven staan. max(0px, ...)
+     legt de tekst in dat geval tegen de linkerrand, zodat hij vanaf het
+     begin leesbaar is en de overloop naar rechts gaat. */
   28%{
-    transform:translateX(calc(50vw - 50%));
+    transform:translateX(max(0px, calc(50vw - 50%)));
   }
 
-  /* blijft exact gecentreerd */
+  /* blijft staan */
   56%{
-    transform:translateX(calc(50vw - 50%));
+    transform:translateX(max(0px, calc(50vw - 50%)));
   }
 
-  /* versnelt vanaf exact hetzelfde middenpunt */
+  /* versnelt vanaf exact hetzelfde punt */
   68%{
-    transform:translateX(calc(50vw - 50%));
+    transform:translateX(max(0px, calc(50vw - 50%)));
   }
 
-  /* volledige tekst is links uit beeld */
+  /* volledige tekst links uit beeld: rechterrand van de tekst staat
+     24px voorbij de linkerrand van de balk. -100% is de eigen breedte,
+     dus dit klopt bij elke schermbreedte en elke tekstlengte. */
   100%{
-    transform:translateX(calc(-100% - 20px));
+    transform:translateX(calc(-100% - 24px));
   }
 }
 
