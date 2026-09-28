@@ -1863,6 +1863,42 @@ header .brand,
   .status-extra{animation:none;color:#ffffff}
 }
 
+/* ============================================================
+   CONTACT: tekst en zwevende logo's horizontaal centreren
+   ============================================================ */
+/* .section-head is max-width:700px zonder auto-marges, dus het hele blok
+   hing links in de container van 1180px. De logo's stonden al op
+   align-items:center, maar dan gecentreerd binnen dat linkse blok.
+   Het blok zelf centreren zet zowel de tekst als de logo's in het midden
+   van het scherm. */
+#contact .section-head{
+  margin-left:auto;
+  margin-right:auto;
+  text-align:center;
+}
+#contact .contact-details{
+  text-align:center;
+}
+/* De zweefanimatie zet zelf transform met !important. Hier verandert
+   alleen de statische uitgangspositie, dus traject, snelheid, timing en
+   schaal blijven precies zoals ze waren: de beweging loopt nu om het
+   midden in plaats van om de linkerrand. */
+
+/* ============================================================
+   ADMIN-knop: drie tekstregels lager en zwart
+   ============================================================ */
+#contact .admin-bottom-area{
+  /* was 16px. Regelhoogte is 1.6, dus drie regels is 4.8em. */
+  margin:calc(16px + 4.8em) 0 0 !important;
+}
+#contact .admin-bottom-btn{
+  background:#000000 !important;
+}
+#contact .admin-bottom-btn:hover{
+  background:#ffad3d !important;
+  color:#081846 !important;
+}
+
 /* ---------- adminblok ---------- */
 .mededeling-lijst{
   display:flex;
