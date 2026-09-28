@@ -1731,8 +1731,8 @@ header .brand,
     0 25px 60px rgba(70,45,20,.22);
   transform-origin:center center;
   will-change:transform;
-  /* Heel langzaam: een hele ronde duurt ruim een minuut. */
-  animation:heroDrift 64s ease-in-out infinite;
+  /* Langzaam, maar wel zichtbaar: een hele ronde duurt 44 seconden. */
+  animation:heroDrift 44s ease-in-out infinite;
   pointer-events:none;
 }
 
@@ -1750,11 +1750,11 @@ header .brand,
 /* De beweging blijft binnen de opgeschaalde foto, dus er komt nooit
    een rand in beeld. Alleen deze laag beweegt. */
 @keyframes heroDrift{
-  0%   {transform:scale(1.06) translate3d(0,0,0)}
-  25%  {transform:scale(1.07) translate3d(-9px,-6px,0)}
-  50%  {transform:scale(1.08) translate3d(5px,-10px,0)}
-  75%  {transform:scale(1.07) translate3d(8px,-4px,0)}
-  100% {transform:scale(1.06) translate3d(0,0,0)}
+  0%   {transform:scale(1.08) translate3d(0,0,0)}
+  25%  {transform:scale(1.10) translate3d(-26px,-15px,0)}
+  50%  {transform:scale(1.12) translate3d(14px,-26px,0)}
+  75%  {transform:scale(1.10) translate3d(24px,-11px,0)}
+  100% {transform:scale(1.08) translate3d(0,0,0)}
 }
 
 /* Tekst ervoor, gecentreerd, beweegt niet mee. */
@@ -1801,7 +1801,7 @@ header .brand,
 
 /* Wie beweging heeft uitgezet, krijgt een stilstaande achtergrond. */
 @media (prefers-reduced-motion: reduce){
-  .hero-bg{animation:none;transform:scale(1.06)}
+  .hero-bg{animation:none;transform:scale(1.08)}
 }
 </style>
 
