@@ -234,11 +234,21 @@ section .card {
     transform:translateX(max(0px, calc(50vw - 50%)));
   }
 
-  /* volledige tekst links uit beeld: rechterrand van de tekst staat
-     24px voorbij de linkerrand van de balk. -100% is de eigen breedte,
-     dus dit klopt bij elke schermbreedte en elke tekstlengte. */
+  /* Volledige tekst links uit beeld, met ruime overloop.
+     -100% is de eigen breedte van de tekst, dus de rechterrand komt
+     altijd voorbij de linkerrand van de balk.
+
+     De overloop van 40vw + 60px is nodig vanwege de easing: de curve
+     cubic-bezier(.16,.84,.22,1) legt 95% van de weg af in de eerste helft
+     van de tijd en kruipt daarna nog 1,7 s door. Zonder die overloop
+     gebeurt dat kruipen nog binnen beeld en bleef het laatste woord
+     zichtbaar hangen. Met deze marge is de tekst al weg op 80% van het
+     traject en kruipt de staart buiten beeld uit.
+
+     40vw schaalt met het scherm, -100% met de tekst: klopt dus op een
+     smalle telefoon met lange tekst en op een brede desktop. */
   100%{
-    transform:translateX(calc(-100% - 24px));
+    transform:translateX(calc(-100% - 40vw - 60px));
   }
 }
 
