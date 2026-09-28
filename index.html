@@ -1720,6 +1720,122 @@ header .brand,
 }
 </style>
 
+<style>
+/* ============================================================
+   HERO / openingsscene
+   Achtergrondfoto over de hele sectie, tekst gecentreerd ervoor.
+   Alleen nieuwe selectors; bestaande regels blijven staan.
+
+   Wil je een andere foto? Pas alleen --hero-image hieronder aan.
+   ============================================================ */
+.hero{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+}
+
+.hero-bg{
+  --hero-image:url("images/zandsculptuur-1.png");
+
+  position:absolute;
+  inset:10px;
+  z-index:0;
+  border:1px solid #ffad3d;
+  border-radius:22px;
+  overflow:hidden;
+  /* De warme, bruinige tint van de foto wordt hier donkerblauw.
+     luminosity houdt de helderheid van de foto en neemt kleur en
+     verzadiging van de blauwe onderlaag over: de sculptuur blijft
+     volledig intact, alleen de kleurzweem verandert. */
+  background-color:#0f2557;
+  background-image:var(--hero-image);
+  background-blend-mode:luminosity;
+  background-repeat:no-repeat;
+  background-size:cover;
+  /* Desktop: sculptuur iets naar rechts van het midden. */
+  background-position:62% 45%;
+  /* Subtiel, zodat de tekst leesbaar blijft. */
+  opacity:.5;
+  box-shadow:
+    0 0 6px rgba(255,175,65,.95),
+    0 0 18px rgba(255,125,20,.55),
+    0 25px 60px rgba(70,45,20,.22);
+  transform-origin:center center;
+  will-change:transform;
+  /* Heel langzaam: een hele ronde duurt ruim een minuut. */
+  animation:heroDrift 64s ease-in-out infinite;
+  pointer-events:none;
+}
+
+/* Donkerblauwe sluier over de foto, binnen dezelfde rand. */
+.hero-bg::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(180deg, rgba(8,24,70,.22) 0%, rgba(8,24,70,.46) 55%, rgba(8,24,70,.70) 100%),
+    radial-gradient(120% 90% at 50% 45%, rgba(8,24,70,0) 0%, rgba(8,24,70,.52) 100%);
+  pointer-events:none;
+}
+
+/* De beweging blijft binnen de opgeschaalde foto, dus er komt nooit
+   een rand in beeld. Alleen deze laag beweegt. */
+@keyframes heroDrift{
+  0%   {transform:scale(1.06) translate3d(0,0,0)}
+  25%  {transform:scale(1.07) translate3d(-9px,-6px,0)}
+  50%  {transform:scale(1.08) translate3d(5px,-10px,0)}
+  75%  {transform:scale(1.07) translate3d(8px,-4px,0)}
+  100% {transform:scale(1.06) translate3d(0,0,0)}
+}
+
+/* Tekst ervoor, gecentreerd, beweegt niet mee. */
+.hero .hero-inner{
+  position:relative;
+  z-index:2;
+  grid-template-columns:1fr;
+  justify-items:center;
+  text-align:center;
+  gap:0;
+}
+.hero .hero-copy{
+  max-width:820px;
+  width:100%;
+}
+.hero .hero-copy .lead{
+  margin-left:auto;
+  margin-right:auto;
+}
+.hero .hero-copy .buttons{
+  justify-content:center;
+}
+/* Leesbaarheid boven de foto. */
+.hero .hero-copy h1,
+.hero .hero-copy .lead{
+  text-shadow:0 2px 18px rgba(8,24,70,.85);
+}
+
+/* Mobiel: smaller beeld, dus strakker uitsnijden op het sculptuur. */
+@media(max-width:800px){
+  .hero-bg{
+    inset:8px;
+    background-position:58% 38%;
+    opacity:.38;
+  }
+}
+@media(max-width:520px){
+  .hero-bg{
+    inset:6px;
+    border-radius:18px;
+    background-position:55% 34%;
+  }
+}
+
+/* Wie beweging heeft uitgezet, krijgt een stilstaande achtergrond. */
+@media (prefers-reduced-motion: reduce){
+  .hero-bg{animation:none;transform:scale(1.06)}
+}
+</style>
+
 </head>
 <body>
 <nav class="nav">
@@ -1742,8 +1858,9 @@ header .brand,
 </div>
 
 <header class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
   <div class="hero-inner">
-    <div>
+    <div class="hero-copy">
       <div class="eyebrow">Bijzondere zandkunst in Groningen</div>
       <h1 class="sand-text-source">Beelden van<br>zand.</h1>
       <p class="lead sand-text-source"><span id="randomIntroText"></span></p>
@@ -1752,7 +1869,6 @@ header .brand,
         <a class="btn sand-text-source" href="#beelden">Bekijk de beelden</a>
       </div>
     </div>
-    <div class="hero-art"><img decoding="async" fetchpriority="high" width="1200" height="1600" src="images/zandsculptuur-1.png" alt="Zandsculptuur" style="width:100%;height:100%;object-fit:cover;display:block;--wobble-duration:7.57s;--wobble-delay:-0.83s;" class="sand-hover-source"></div>
   </div>
 </header>
 
@@ -2806,7 +2922,7 @@ header .brand,
     const next=findNextOpening(rules,now.date,now.time);
     if(!next) return {open:false,message:'MOMENTEEL GESLOTEN'};
     if(next.dayOffset===0) return {open:false,message:'MOMENTEEL GESLOTEN - OPENT OM '+next.time};
-    if(next.dayOffset===1) return {open:false,message:'MOMENTEEL GESLOTEN - MORGEN WEER OPEN OM '+next.time};
+    if(next.dayOffset===1) return {open:false,message:'MOMENTEEL GESLOTEN - MORGEN OM '+next.time+' WEER OPEN'};
     return {open:false,message:'MOMENTEEL GESLOTEN - WEER OPEN OP '+fmtDate(next.date)+' OM '+next.time};
   }
 
