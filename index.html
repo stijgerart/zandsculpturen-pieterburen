@@ -2457,8 +2457,8 @@ header .brand,
             <tr>
               <th scope="col">Van datum</th>
               <th scope="col">Tot datum</th>
-              <th scope="col">Van</th>
-              <th scope="col">Tot</th>
+              <th scope="col">Van tijd</th>
+              <th scope="col">Tot tijd</th>
               <th scope="col">Dicht</th>
               <th scope="col"><span class="oh-sr">Verwijderen</span></th>
             </tr>
@@ -3113,7 +3113,20 @@ header .brand,
       await authFetch('/recover?redirect_to='+encodeURIComponent(RESET_REDIRECT),{email:email});
       forgotMessage.textContent='Er is een herstelmail verstuurd naar '+email+'.';
     }catch(e){
-      forgotMessage.textContent='Versturen mislukt. Probeer het later opnieuw.';
+      // Supabase weigert bij een volle verzendlimiet met
+      // over_email_send_rate_limit: "email rate limit exceeded", of bij de
+      // cooldown per gebruiker met "... you can only request this after N seconds".
+      const m=String((e && e.message)||'');
+      const seconden=(m.match(/after (\d+) seconds?/i)||[])[1];
+      if(seconden){
+        forgotMessage.textContent='Je hebt net al een herstelmail aangevraagd. Wacht '+
+          seconden+' seconden en probeer het opnieuw.';
+      }else if(/rate limit/i.test(m)){
+        forgotMessage.textContent='Er zijn te veel herstelmails aangevraagd. '+
+          'Wacht ongeveer een uur en probeer het opnieuw.';
+      }else{
+        forgotMessage.textContent='Versturen mislukt. Probeer het later opnieuw.';
+      }
       console.error(e);
     }finally{
       forgotBtn.disabled=false;
