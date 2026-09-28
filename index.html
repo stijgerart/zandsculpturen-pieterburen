@@ -1752,8 +1752,8 @@ header .brand,
     0 25px 60px rgba(70,45,20,.22);
   transform-origin:center center;
   will-change:transform;
-  /* Langzaam, maar wel zichtbaar: een hele ronde duurt 34 seconden. */
-  animation:heroDrift 34s ease-in-out infinite;
+  /* Langzaam, maar wel zichtbaar: een hele ronde duurt 26 seconden. */
+  animation:heroDrift 26s ease-in-out infinite;
   pointer-events:none;
 }
 
@@ -3481,13 +3481,81 @@ header .brand,
 (function(){
   const track=document.getElementById('statusScrollTrack');
   if(!track)return;
+
+  let raceInterval=null;
   function race(){
     track.classList.remove('race-accelerate');
     setTimeout(()=>track.classList.add('race-accelerate'),4320);
     setTimeout(()=>track.classList.remove('race-accelerate'),6900);
   }
-  race();
-  setInterval(race,7200);
+  function startRace(){
+    if(raceInterval!==null) clearInterval(raceInterval);
+    race();
+    raceInterval=setInterval(race,7200);
+  }
+
+  /* De houdpositie in @keyframes statusRace is max(0px, calc(50vw - 50%)).
+     Die 50% is de halve breedte van de tekst. Bij de eerste weergave staat
+     er nog "MOMENTEEL GESLOTEN" in de HTML; het openingstijdenscript zet
+     daarna de echte, vaak langere tekst. De animatie was op dat moment al
+     begonnen, en niet elke browser herberekent de percentages in een
+     lopende animatie als de breedte van het element daarna verandert.
+     Op de eerste weergave in portret bleef de balk daardoor rekenen met de
+     oude tekstbreedte. Na een orientationchange herrekende de browser wel,
+     en klopte het.
+
+     Onderstaande hulpfunctie start de animatie opnieuw zodat de percentages
+     opnieuw worden bepaald. Positie, eindpunt, snelheid en pauzeduur staan
+     volledig in de CSS en veranderen hierdoor niet. */
+  function herstartAnimatie(){
+    track.style.animation='none';
+    void track.offsetWidth;          // forceer een reflow
+    track.style.animation='';        // laat de CSS-regel weer gelden
+    startRace();                     // letter-spacing weer in fase
+  }
+
+  /* Alleen herstarten als de geometrie echt anders is dan waarmee we de
+     vorige keer zijn gestart. Verandert er niets, bijvoorbeeld op een
+     desktop die gewoon laadt, dan gebeurt er ook niets. */
+  function meting(){
+    return Math.round(track.getBoundingClientRect().width)+'x'+
+           Math.round(window.innerWidth);
+  }
+  let laatsteMeting=meting();
+  function herstartAlsVeranderd(){
+    const nu=meting();
+    if(nu===laatsteMeting) return;
+    laatsteMeting=nu;
+    herstartAnimatie();
+  }
+
+  /* Twee frames wachten: na het eerste frame staat de layout, na het tweede
+     zijn ook breedtes die uit een stijlwijziging volgen definitief. */
+  function naTweeFrames(){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(herstartAlsVeranderd);
+    });
+  }
+
+  startRace();
+
+  if(document.readyState==='complete'){
+    naTweeFrames();
+  }else{
+    document.addEventListener('DOMContentLoaded',naTweeFrames,{once:true});
+    window.addEventListener('load',naTweeFrames,{once:true});
+  }
+
+  let hertekenTimer=null;
+  function bijMaatwijziging(){
+    if(hertekenTimer!==null) clearTimeout(hertekenTimer);
+    hertekenTimer=setTimeout(function(){
+      hertekenTimer=null;
+      herstartAlsVeranderd();
+    },150);
+  }
+  window.addEventListener('resize',bijMaatwijziging,{passive:true});
+  window.addEventListener('orientationchange',bijMaatwijziging,{passive:true});
 })();
 </script>
 </body>
