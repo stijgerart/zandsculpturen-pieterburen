@@ -245,10 +245,14 @@ section .card {
      zichtbaar hangen. Met deze marge is de tekst al weg op 80% van het
      traject en kruipt de staart buiten beeld uit.
 
-     40vw schaalt met het scherm, -100% met de tekst: klopt dus op een
-     smalle telefoon met lange tekst en op een brede desktop. */
+     -130% is de eigen breedte plus 30% extra, 40vw schaalt met het scherm
+     en 60px is een ondergrens. De marge groeit dus mee met zowel de tekst
+     als het scherm. Bewijs: nodig is 0,258 x (houdpositie + tekstbreedte);
+     deze formule levert 0,30 x tekstbreedte + 0,40 x schermbreedte + 60px,
+     en dat is bij elke combinatie ruimer. Lange bijzondere mededelingen
+     verdwijnen daardoor ook op een smalle telefoon volledig. */
   100%{
-    transform:translateX(calc(-100% - 40vw - 60px));
+    transform:translateX(calc(-130% - 40vw - 60px));
   }
 }
 
@@ -1826,6 +1830,101 @@ header .brand,
 }
 </style>
 
+<style>
+/* ============================================================
+   BIJZONDERE MEDEDELINGEN
+   Eigen span in dezelfde scrolltrack, zodat de statuslogica en
+   #statusText onaangeroerd blijven.
+   ============================================================ */
+.status-extra{
+  display:inline-block;
+  white-space:nowrap;
+  letter-spacing:.06em;
+  color:#ffffff;
+  /* Zachte overgang wit -> donkerblauw -> wit, in hetzelfde ritme als
+     de scroll. De tekst lijkt even in de achtergrond te zakken.
+     Geen harde knippering: ease-in-out en maar een doorgang per cyclus. */
+  animation:mededelingFade 7.2s ease-in-out infinite;
+}
+.status-extra[hidden]{display:none}
+
+@keyframes mededelingFade{
+  0%   {color:#ffffff}
+  30%  {color:#cdd6ea}
+  50%  {color:#081846}
+  70%  {color:#cdd6ea}
+  100% {color:#ffffff}
+}
+
+/* De statustekst en de mededeling wisselen elkaar af; nooit samen. */
+.status-scroll-track.toont-mededeling #statusText{display:none}
+
+@media (prefers-reduced-motion: reduce){
+  .status-extra{animation:none;color:#ffffff}
+}
+
+/* ---------- adminblok ---------- */
+.mededeling-lijst{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom:14px;
+}
+.mededeling-rij{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.mededeling-rij input[type="text"]{
+  flex:1 1 auto;
+  min-width:0;
+  margin:0;
+  padding:9px 11px;
+  border:1px solid rgba(255,173,61,.55);
+  border-radius:7px;
+  background:#081846;
+  color:#ffad3d;
+  font:inherit;
+  font-size:.88rem;
+}
+.mededeling-rij input[type="checkbox"]{
+  width:19px;
+  height:19px;
+  margin:0;
+  flex:0 0 auto;
+  accent-color:#ffad3d;
+  cursor:pointer;
+}
+.mededeling-rij .mededeling-nr{
+  flex:0 0 auto;
+  width:14px;
+  color:#ffad3d;
+  font-size:.82rem;
+  opacity:.7;
+}
+.mededeling-rij.is-uit input[type="text"]{opacity:.55}
+#mededelingStatus{
+  margin-top:10px;
+  font-size:.86rem;
+  color:#ffad3d;
+}
+#mededelingStatus.admin-save-error{
+  padding:10px 12px;
+  border:1px solid #e06a3a;
+  border-radius:8px;
+  background:rgba(224,106,58,.12);
+  color:#f0a07a;
+  font-weight:700;
+}
+#mededelingStatus.admin-save-ok{
+  padding:10px 12px;
+  border:1px solid rgba(255,173,61,.55);
+  border-radius:8px;
+  background:rgba(255,173,61,.10);
+  font-weight:700;
+}
+</style>
+
 </head>
 <body>
 <nav class="nav">
@@ -1842,7 +1941,7 @@ header .brand,
 <div id="statusBar" class="status-bar status-closed" aria-live="polite">
   <div class="status-scroll-window">
     <div id="statusScrollTrack" class="status-scroll-track">
-      <span id="statusText" class="sand-text-source">MOMENTEEL GESLOTEN</span>
+      <span id="statusText" class="sand-text-source">MOMENTEEL GESLOTEN</span><span id="statusExtra" class="status-extra" hidden></span>
     </div>
   </div>
 </div>
@@ -2577,6 +2676,14 @@ header .brand,
 
     <button type="button" id="saveBtn" class="admin-save-btn">OPSLAAN</button>
     <div id="adminCurrentStatus"></div>
+
+    <div class="admin-section">
+      <h3>BIJZONDERE MEDEDELINGEN</h3>
+      <p class="oh-hint">Aangevinkte mededelingen lopen mee in de balk bovenaan, afgewisseld met de status. Niets aangevinkt betekent dat alleen de status voorbijkomt.</p>
+      <div class="mededeling-lijst" id="mededelingLijst"></div>
+      <button type="button" id="mededelingSaveBtn" class="admin-save-btn">MEDEDELINGEN OPSLAAN</button>
+      <div id="mededelingStatus"></div>
+    </div>
 
     <div class="admin-password-section">
       <h3>Wachtwoord wijzigen</h3>
@@ -3481,6 +3588,7 @@ header .brand,
 (function(){
   const track=document.getElementById('statusScrollTrack');
   if(!track)return;
+  const extra=document.getElementById('statusExtra');
 
   let raceInterval=null;
   function race(){
@@ -3491,7 +3599,48 @@ header .brand,
   function startRace(){
     if(raceInterval!==null) clearInterval(raceInterval);
     race();
-    raceInterval=setInterval(race,7200);
+    raceInterval=setInterval(tik,7200);
+  }
+
+  /* Afwisseling status / bijzondere mededeling.
+     beurt begint op 1, zodat de eerste cyclus de status uit de HTML toont
+     en de tweede de eerste mededeling:
+       STATUS -> MEDEDELING 1 -> STATUS -> MEDEDELING 2 -> ...
+     Zonder actieve mededelingen wordt hier niets aangeraakt en blijft de
+     scroll exact zoals hij was. */
+  let beurt=1;
+  function toonVolgende(){
+    const lijst=(window.__zpbMededelingen||[])
+      .map(function(t){return String(t==null?'':t).trim()})
+      .filter(Boolean);
+    const stondMededeling=track.classList.contains('toont-mededeling');
+
+    if(!lijst.length){
+      beurt=1;
+      if(!stondMededeling) return false;      // niets te doen, gedrag als nu
+      if(extra){extra.hidden=true;extra.textContent='';}
+      track.classList.remove('toont-mededeling');
+      return true;
+    }
+
+    if(beurt%2===1 && extra){
+      extra.textContent=lijst[Math.floor(beurt/2)%lijst.length];
+      extra.hidden=false;
+      track.classList.add('toont-mededeling');
+    }else{
+      if(extra){extra.hidden=true;extra.textContent='';}
+      track.classList.remove('toont-mededeling');
+    }
+    beurt=(beurt+1)%(lijst.length*2);
+    return true;
+  }
+
+  /* Eén cyclus: inhoud wisselen en, als die wisselde, de animatie opnieuw
+     starten zodat de percentages bij de nieuwe tekstbreedte horen. Dat
+     gebeurt precies op de cyclusgrens, waar de tekst buiten beeld is. */
+  function tik(){
+    if(toonVolgende()) herstartCss();
+    race();
   }
 
   /* De houdpositie in @keyframes statusRace is max(0px, calc(50vw - 50%)).
@@ -3507,10 +3656,15 @@ header .brand,
      Onderstaande hulpfunctie start de animatie opnieuw zodat de percentages
      opnieuw worden bepaald. Positie, eindpunt, snelheid en pauzeduur staan
      volledig in de CSS en veranderen hierdoor niet. */
-  function herstartAnimatie(){
+  function herstartCss(){
     track.style.animation='none';
+    if(extra) extra.style.animation='none';
     void track.offsetWidth;          // forceer een reflow
     track.style.animation='';        // laat de CSS-regel weer gelden
+    if(extra) extra.style.animation='';
+  }
+  function herstartAnimatie(){
+    herstartCss();
     startRace();                     // letter-spacing weer in fase
   }
 
@@ -3556,6 +3710,243 @@ header .brand,
   }
   window.addEventListener('resize',bijMaatwijziging,{passive:true});
   window.addEventListener('orientationchange',bijMaatwijziging,{passive:true});
+})();
+</script>
+
+
+<script>
+/* ============================================================
+   BIJZONDERE MEDEDELINGEN
+   Vijf tekstvelden met een aan/uit-schakelaar, opgeslagen in de
+   bestaande tabel public.site_settings onder id = 'mededelingen'.
+   Los van het openingstijdenscript: die logica en #statusText
+   blijven onaangeroerd. De scroll leest window.__zpbMededelingen.
+   ============================================================ */
+(function(){
+  const SUPABASE_URL='https://jvtpjhavqfyueaghgmhl.supabase.co';
+  const SUPABASE_KEY='sb_publishable_YXdG9V5R1YjhFgCp54RUMw_EnBrxWxe';
+  const RIJ_ID='mededelingen';
+  const AANTAL=5;
+  const SESSION_KEY='zpb_admin_session';
+
+  window.__zpbMededelingen=window.__zpbMededelingen||[];
+
+  const lijstEl=document.getElementById('mededelingLijst');
+  const saveBtn=document.getElementById('mededelingSaveBtn');
+  const statusEl=document.getElementById('mededelingStatus');
+  const adminOpenBtn=document.getElementById('adminOpenBtn');
+
+  function melding(tekst,isFout){
+    if(!statusEl) return;
+    statusEl.textContent=tekst;
+    statusEl.classList.toggle('admin-save-error',!!isFout);
+    statusEl.classList.toggle('admin-save-ok',!isFout && !!tekst);
+  }
+
+  function token(){
+    try{
+      const raw=sessionStorage.getItem(SESSION_KEY);
+      if(!raw) return null;
+      const s=JSON.parse(raw);
+      if(!s || !s.access_token || !s.expires_at) return null;
+      if(s.expires_at*1000 - Date.now() <= 0) return null;
+      return s.access_token;
+    }catch(e){ return null; }
+  }
+
+  function normaliseer(ruw){
+    const items=(ruw && Array.isArray(ruw.items)) ? ruw.items : [];
+    const uit=[];
+    for(let i=0;i<AANTAL;i++){
+      const it=items[i]||{};
+      uit.push({
+        text:String(it.text==null?'':it.text).slice(0,200),
+        active:it.active===true
+      });
+    }
+    return uit;
+  }
+
+  let items=normaliseer(null);
+
+  function naarScroll(){
+    window.__zpbMededelingen=items
+      .filter(function(it){return it.active && it.text.trim()})
+      .map(function(it){return it.text.trim()});
+  }
+
+  /* ---------- lezen ---------- */
+  async function laad(){
+    try{
+      const res=await fetch(
+        SUPABASE_URL+'/rest/v1/site_settings?select=settings&id=eq.'+RIJ_ID,
+        {headers:{'apikey':SUPABASE_KEY,'Cache-Control':'no-cache'}}
+      );
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const rows=await res.json();
+      items=normaliseer(rows && rows[0] ? rows[0].settings : null);
+      naarScroll();
+      return true;
+    }catch(e){
+      /* Geen rechten of geen rij: geen mededelingen, en de balk blijft
+         precies doen wat hij deed. Bezoeker ziet geen foutmelding. */
+      console.warn('Mededelingen laden mislukt:',e.message||e);
+      window.__zpbMededelingen=[];
+      return false;
+    }
+  }
+
+  /* ---------- adminformulier ---------- */
+  function bouwRijen(){
+    if(!lijstEl) return;
+    lijstEl.textContent='';
+    items.forEach(function(it,i){
+      const rij=document.createElement('div');
+      rij.className='mededeling-rij';
+
+      const nr=document.createElement('span');
+      nr.className='mededeling-nr';
+      nr.textContent=String(i+1);
+      rij.appendChild(nr);
+
+      const tekst=document.createElement('input');
+      tekst.type='text';
+      tekst.className='mededeling-tekst';
+      tekst.maxLength=200;
+      tekst.value=it.text;
+      tekst.setAttribute('aria-label','Mededeling '+(i+1));
+      rij.appendChild(tekst);
+
+      const aan=document.createElement('input');
+      aan.type='checkbox';
+      aan.className='mededeling-aan';
+      aan.checked=it.active;
+      aan.setAttribute('aria-label','Mededeling '+(i+1)+' aan of uit');
+      rij.appendChild(aan);
+
+      function toonStand(){ rij.classList.toggle('is-uit',!aan.checked) }
+      aan.addEventListener('change',toonStand);
+      toonStand();
+
+      lijstEl.appendChild(rij);
+    });
+  }
+
+  function leesRijen(){
+    if(!lijstEl) return items;
+    return Array.from(lijstEl.querySelectorAll('.mededeling-rij')).map(function(rij){
+      return {
+        text:String(rij.querySelector('.mededeling-tekst').value||'').trim().slice(0,200),
+        active:rij.querySelector('.mededeling-aan').checked
+      };
+    });
+  }
+
+  /* ---------- opslaan ---------- */
+  async function bewaar(){
+    const nieuw=leesRijen();
+    const leegMaarAan=nieuw.some(function(it){return it.active && !it.text});
+    if(leegMaarAan){
+      melding('Een aangevinkte mededeling mag niet leeg zijn.',true);
+      return false;
+    }
+
+    const jwt=token();
+    if(!jwt){
+      melding('Sessie verlopen. Log opnieuw in.',true);
+      return false;
+    }
+
+    const res=await fetch(SUPABASE_URL+'/rest/v1/site_settings',{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+jwt,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=representation'
+      },
+      body:JSON.stringify({id:RIJ_ID,settings:{items:nieuw}})
+    });
+    if(!res.ok){
+      const tekst=await res.text();
+      const err=new Error(tekst||('HTTP '+res.status));
+      err.status=res.status;
+      throw err;
+    }
+
+    items=nieuw;
+    naarScroll();
+    return true;
+  }
+
+  if(saveBtn){
+    const LABEL='MEDEDELINGEN OPSLAAN';
+    saveBtn.addEventListener('click',async function(){
+      let gelukt=false;
+      saveBtn.disabled=true;
+      saveBtn.textContent='OPSLAAN...';
+      melding('Opslaan...',false);
+      try{
+        if(!await bewaar()) return;
+
+        // Onafhankelijk nalezen, zoals bij de openingstijden.
+        let bevestigd=false;
+        for(let poging=0;poging<6;poging++){
+          await new Promise(function(r){setTimeout(r,400)});
+          if(await laad()){
+            const zelfde=items.every(function(it,i){
+              return it.text===leesRijen()[i].text && it.active===leesRijen()[i].active;
+            });
+            if(zelfde){ bevestigd=true; break; }
+          }
+        }
+        if(!bevestigd){
+          melding('OPSLAAN NIET BEVESTIGD - controleer de lijst en probeer opnieuw.',true);
+          bouwRijen();
+          return;
+        }
+        gelukt=true;
+        bouwRijen();
+        melding('Opgeslagen. De balk bovenaan gebruikt nu deze mededelingen.',false);
+        saveBtn.textContent='OPGESLAGEN ✓';
+        setTimeout(function(){ saveBtn.textContent=LABEL; },1500);
+      }catch(e){
+        console.error(e);
+        if(e.status===401 || e.status===403){
+          melding('Geen rechten om op te slaan. Staat de policy voor site_settings goed?',true);
+        }else if(e.status===404){
+          melding('Tabel site_settings is niet bereikbaar. De SQL moet nog worden uitgevoerd.',true);
+        }else{
+          melding('Opslaan mislukt: '+(e.message||'onbekende fout'),true);
+        }
+      }finally{
+        saveBtn.disabled=false;
+        if(!gelukt) saveBtn.textContent=LABEL;
+      }
+    });
+  }
+
+  if(adminOpenBtn){
+    adminOpenBtn.addEventListener('click',async function(){
+      melding('',false);
+      await laad();
+      bouwRijen();
+    });
+  }
+
+  /* ---------- start en verversen ---------- */
+  laad().then(bouwRijen);
+
+  let timer=null;
+  function start(){ if(timer===null) timer=setInterval(laad,60000) }
+  function stop(){ if(timer!==null){clearInterval(timer);timer=null} }
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){ stop(); }else{ laad(); start(); }
+  });
+  if(!document.hidden) start();
+
+  // Voor de tests: de actieve lijst opvragen zonder netwerk.
+  window.__zpbMededelingenItems=function(){ return items.slice() };
 })();
 </script>
 </body>
