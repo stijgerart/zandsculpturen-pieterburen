@@ -2491,6 +2491,9 @@ header .brand,
   const SUPABASE_URL='https://jvtpjhavqfyueaghgmhl.supabase.co';
   const SUPABASE_KEY='sb_publishable_YXdG9V5R1YjhFgCp54RUMw_EnBrxWxe';
   const TZ='Europe/Amsterdam';
+  // Waar de wachtwoord-herstelmail naartoe terugstuurt. Moet ook in
+  // Supabase staan bij Authentication -> URL Configuration.
+  const RESET_REDIRECT='https://stijgerart.github.io/zandsculpturen-pieterburen/';
 
   const adminOpenBtn=document.getElementById('adminOpenBtn');
   const loginModal=document.getElementById('adminLoginModal');
@@ -3031,16 +3034,31 @@ header .brand,
   /* ============================================================
      GEBEURTENISSEN
      ============================================================ */
-  async function openPanel(){
+  async function openPanel(opties){
+    const herstel=!!(opties && opties.herstel);
     hide(loginModal);
-    await loadOpeningHours();
-    renderRows();
     newPassword.value='';
     newPassword2.value='';
     passwordMessage.textContent='';
     saveMessage('',false);
+
+    if(herstel){
+      if(recoveryFout){
+        // Verlopen of ongeldige link: er is geen sessie, dus alleen de fout.
+        saveMessage('Herstellink werkt niet: '+recoveryFout+
+          ' Vraag een nieuwe aan via ADMIN, "Wachtwoord vergeten?".',true);
+        show(adminPanel);
+        recoveryFout='';
+        return;
+      }
+      passwordMessage.textContent='Stel hier je nieuwe wachtwoord in.';
+    }
+
+    await loadOpeningHours();
+    renderRows();
     show(adminPanel);
     checkActualStatus();
+    if(herstel) setTimeout(function(){ newPassword.focus(); },60);
   }
 
   adminOpenBtn.addEventListener('click',async function(){
@@ -3091,7 +3109,8 @@ header .brand,
     if(!email){forgotMessage.textContent='Vul eerst je e-mailadres in.';return;}
     forgotBtn.disabled=true;
     try{
-      await authFetch('/recover',{email:email});
+      // GoTrue neemt redirect_to als query-parameter, niet in de body.
+      await authFetch('/recover?redirect_to='+encodeURIComponent(RESET_REDIRECT),{email:email});
       forgotMessage.textContent='Er is een herstelmail verstuurd naar '+email+'.';
     }catch(e){
       forgotMessage.textContent='Versturen mislukt. Probeer het later opnieuw.';
@@ -3237,10 +3256,73 @@ header .brand,
      Lezen elke 60 s, status herrekenen elke 15 s, beide gepauzeerd
      zolang het tabblad niet zichtbaar is.
      ============================================================ */
+  /* ============================================================
+     HERSTELLINK - terugkomst uit de wachtwoord-resetmail.
+     GoTrue stuurt de tokens mee in het URL-fragment:
+       #access_token=...&refresh_token=...&type=recovery&expires_in=3600
+     of bij een probleem:
+       #error=access_denied&error_code=otp_expired&error_description=...
+     ============================================================ */
+  let recoveryFout='';
+
+  function leesFragment(){
+    const hash=String((window.location && window.location.hash)||'').replace(/^#/,'');
+    if(!hash) return null;
+    let p=null;
+    try{ p=new URLSearchParams(hash); }catch(e){ return null; }
+    if(!p.get('type') && !p.get('error') && !p.get('error_description')) return null;
+    return p;
+  }
+
+  function wisFragment(){
+    // Token uit de adresbalk en uit de geschiedenis halen, zodat hij niet
+    // in een gedeelde link of achter de back-knop achterblijft.
+    try{
+      window.history.replaceState(null,'',window.location.pathname+window.location.search);
+    }catch(e){
+      try{ window.location.hash=''; }catch(e2){}
+    }
+  }
+
+  function verwerkHerstelLink(){
+    const p=leesFragment();
+    if(!p) return false;
+
+    const type=p.get('type');
+    const fout=p.get('error_description')||p.get('error');
+    const token=p.get('access_token');
+
+    if(fout){
+      recoveryFout=String(fout).replace(/\+/g,' ');
+      wisFragment();
+      return true;
+    }
+
+    if(type==='recovery' && token){
+      storeSession({
+        access_token:token,
+        refresh_token:p.get('refresh_token')||'',
+        expires_at:Math.floor(Date.now()/1000)+(Number(p.get('expires_in'))||3600),
+        user_id:null,
+        email:null
+      });
+      wisFragment();
+      return true;
+    }
+
+    return false;
+  }
+
   loadSession();
   loadOpeningHours();
   checkActualStatus();
   updateCurrentClock();
+
+  // Komt de bezoeker uit een herstelmail? Dan direct het paneel openen
+  // met de wachtwoordsectie klaar voor gebruik.
+  if(verwerkHerstelLink()){
+    openPanel({herstel:true});
+  }
 
   let loadTimer=null, statusTimer=null;
 
